@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片词库平台 - 多端同步</title>
+    <style>
+        :root {
+            --bg: #f0f4f8; --card-bg: #ffffff; --primary: #4a6cf7; --primary-dark: #3651d5;
+            --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --text: #1e293b;
+            --text-light: #64748b; --border: #e2e8f0; --shadow: 0 4px 24px rgba(0,0,0,0.08);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.12); --radius: 16px; --radius-sm: 10px;
+            --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            --font: 'Segoe UI','PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:var(--font); background:var(--bg); min-height:100vh; color:var(--text); background-image: radial-gradient(ellipse at 20% 20%, rgba(74,108,247,0.05) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.04) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(245,158,11,0.03) 0%, transparent 60%); }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes bounceIn { 0%{transform:scale(0.3);opacity:0} 50%{transform:scale(1.05)} 70%{transform:scale(0.95)} 100%{transform:scale(1);opacity:1} }
+        @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+        @keyframes slideInRight { from{opacity:0;transform:translateX(60px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes highlightFade { 0%{background:#fef3c7} 100%{background:transparent} }
+
+        .login-overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:1000; background:rgba(15,23,42,0.7); backdrop-filter:blur(8px); animation:fadeIn .4s ease; }
+        .login-card { background:var(--card-bg); border-radius:24px; padding:48px 40px 40px; width:440px; max-width:92vw; box-shadow:var(--shadow-lg); text-align:center; animation:slideUp .5s ease; position:relative; overflow:hidden; }
+        .login-card::before { content:''; position:absolute; top:0; left:0; right:0; height:5px; background:linear-gradient(90deg,var(--primary),#8b5cf6,var(--success),var(--warning),var(--primary)); background-size:200% 100%; animation:shimmer 3s linear infinite; }
+        .login-icon { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#eef2ff,#e0e7ff); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:36px; }
+        .login-title { font-size:28px; font-weight:700; margin-bottom:6px; letter-spacing:-0.5px; }
+        .login-subtitle { color:var(--text-light); font-size:14px; margin-bottom:32px; line-height:1.5; }
+        .input-group { position:relative; margin-bottom:20px; }
+        .input-group input { width:100%; padding:15px 20px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:18px; letter-spacing:4px; text-align:center; font-family:'SF Mono','Consolas','Monaco',monospace; transition:var(--transition); background:#fafbfc; outline:none; }
+        .input-group input:focus { border-color:var(--primary); box-shadow:0 0 0 4px rgba(74,108,247,0.1); background:#fff; }
+        .input-hint { font-size:12px; color:var(--text-light); margin-top:6px; }
+        .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 28px; border:none; border-radius:var(--radius-sm); font-size:16px; font-weight:600; cursor:pointer; transition:var(--transition); letter-spacing:0.3px; font-family:var(--font); white-space:nowrap; }
+        .btn-primary { background:var(--primary); color:#fff; width:100%; font-size:17px; padding:16px; } .btn-primary:hover { background:var(--primary-dark); transform:translateY(-2px); box-shadow:0 8px 25px rgba(74,108,247,0.35); }
+        .btn-sm { padding:8px 16px; font-size:13px; border-radius:8px; width:auto; }
+        .btn-outline { background:#fff; border:2px solid var(--border); color:var(--text); } .btn-outline:hover { border-color:var(--primary); color:var(--primary); background:#f8faff; }
+        .btn-success { background:var(--success); color:#fff; } .btn-success:hover { background:#059669; }
+        .btn-danger { background:#fff; border:2px solid #fecaca; color:var(--danger); } .btn-danger:hover { background:#fef2f2; border-color:var(--danger); }
+        .btn:disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+        .btn-loading { position:relative; pointer-events:none; } .btn-loading::after { content:''; width:16px; height:16px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .6s linear infinite; margin-left:8px; } @keyframes spin { to{transform:rotate(360deg)} }
+
+        .app-container { display:none; min-height:100vh; } .app-container.active { display:flex; flex-direction:column; }
+        .navbar { background:#fff; border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:62px; box-shadow:0 1px 8px rgba(0,0,0,0.04); position:sticky; top:0; z-index:100; flex-wrap:wrap; }
+        .nav-brand { font-weight:700; font-size:20px; display:flex; align-items:center; gap:10px; }
+        .nav-brand .dot { width:10px; height:10px; border-radius:50%; background:var(--success); animation:pulse 2s infinite; }
+        .nav-links { display:flex; gap:6px; flex-wrap:wrap; }
+        .nav-link { padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:500; font-size:14px; transition:var(--transition); border:none; background:transparent; color:var(--text-light); font-family:var(--font); white-space:nowrap; }
+        .nav-link:hover { background:#f1f5f9; color:var(--text); }
+        .nav-link.active { background:#eef2ff; color:var(--primary); font-weight:600; }
+        .nav-user { display:flex; align-items:center; gap:10px; font-weight:600; font-size:14px; }
+        .nav-user .avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#eef2ff,#c7d2fe); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary); font-size:14px; }
+        .main-content { flex:1; padding:28px 24px; max-width:1300px; margin:0 auto; width:100%; }
+        .page { display:none; animation:slideUp .35s ease; } .page.active { display:block; }
+        .page-title { font-size:24px; font-weight:700; margin-bottom:24px; }
+        .page-subtitle { font-size:14px; color:var(--text-light); margin-bottom:28px; margin-top:-16px; }
+        .card { background:#fff; border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); margin-bottom:20px; transition:var(--transition); border:1px solid transparent; } .card:hover { box-shadow:0 8px 30px rgba(0,0,0,0.1); border-color:#e8ecf1; }
+        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px; } .card-title { font-weight:700; font-size:17px; }
+        .badge { display:inline-block; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+        .badge-published { background:#d1fae5; color:#065f46; } .badge-draft { background:#fef3c7; color:#92400e; }
+        .badge-done { background:#dbeafe; color:#1e40af; }
+        .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px; }
+        .gallery-card { cursor:pointer; text-align:center; } .gallery-card .card-image { width:100%; height:200px; object-fit:cover; border-radius:var(--radius-sm); background:#f1f5f9; transition:var(--transition); } .gallery-card:hover .card-image { transform:scale(1.03); }
+        .gallery-card .word-display { margin-top:12px; font-size:20px; font-weight:700; color:var(--primary); }
+        .competition-list { display:flex; flex-direction:column; gap:16px; } .competition-item { cursor:pointer; }
+        .competition-item .comp-meta { display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--text-light); margin-top:8px; }
+        .comp-answer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px; }
+        .comp-answer-card { text-align:center; } .comp-answer-card .card-image { width:100%; height:180px; object-fit:cover; border-radius:var(--radius-sm); background:#f1f5f9; margin-bottom:10px; }
+        .comp-answer-card .entry-index { font-size:12px; color:var(--text-light); margin-bottom:6px; }
+        .comp-input { width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:8px; font-size:15px; font-family:var(--font); background:#fafbfc; outline:none; text-align:center; transition:var(--transition); }
+        .comp-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(74,108,247,0.08); background:#fff; }
+        .comp-input.correct { border-color:var(--success)!important; background:#f0fdf4!important; }
+        .comp-input.wrong { border-color:var(--danger)!important; background:#fef2f2!important; animation:shake .5s ease; }
+        .rank-table { width:100%; border-collapse:collapse; font-size:14px; } .rank-table th,.rank-table td { padding:14px 16px; text-align:left; border-bottom:1px solid var(--border); } .rank-table th { background:#f8fafc; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-light); } .rank-table tr:hover td { background:#fafcfd; }
+        .rank-badge { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; font-weight:700; font-size:14px; } .rank-1 { background:#fef3c7; color:#92400e; font-size:18px; } .rank-2 { background:#e2e8f0; color:#475569; } .rank-3 { background:#fde8d0; color:#9a3412; } .rank-other { background:#f1f5f9; color:#64748b; }
+        .highlight-row { background:#fffbeb!important; animation:highlightFade 3s ease forwards; }
+        .empty-state { text-align:center; padding:48px 24px; color:var(--text-light); }
+        .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:200; display:flex; align-items:center; justify-content:center; animation:fadeIn .25s ease; }
+        .modal { background:#fff; border-radius:var(--radius); padding:32px; width:600px; max-width:95vw; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow-lg); animation:slideUp .35s ease; } .modal.wide { width:750px; }
+        .modal h3 { margin-bottom:20px; font-size:20px; }
+        .form-group { margin-bottom:16px; } .form-group label { display:block; font-weight:600; margin-bottom:6px; font-size:13px; color:var(--text-light); }
+        .form-group input,.form-group textarea,.form-group select { width:100%; padding:11px 14px; border:2px solid var(--border); border-radius:8px; font-size:14px; font-family:var(--font); background:#fafbfc; outline:none; resize:vertical; transition:var(--transition); }
+        .form-group input:focus,.form-group textarea:focus,.form-group select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(74,108,247,0.08); background:#fff; } .form-group textarea { min-height:60px; }
+        .form-hint { font-size:11px; color:#94a3b8; margin-top:4px; }
+        .image-preview { width:100%; height:160px; object-fit:cover; border-radius:8px; background:#f1f5f9; margin-top:8px; }
+        .preset-images { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; max-height:320px; overflow-y:auto; padding:4px; border:1px solid var(--border); border-radius:8px; background:#fafbfc; }
+        .preset-thumb { width:64px; height:48px; object-fit:cover; border-radius:6px; cursor:pointer; border:2px solid transparent; transition:var(--transition); background:#e2e8f0; flex-shrink:0; } .preset-thumb:hover { border-color:var(--primary); transform:scale(1.08); } .preset-thumb.selected { border-color:var(--primary); box-shadow:0 0 0 3px rgba(74,108,247,0.2); }
+        .entry-select-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; max-height:350px; overflow-y:auto; padding:4px; border:1px solid var(--border); border-radius:8px; background:#fafbfc; }
+        .entry-select-item { text-align:center; cursor:pointer; padding:8px; border-radius:8px; border:2px solid transparent; transition:var(--transition); position:relative; } .entry-select-item:hover { background:#f1f5f9; } .entry-select-item.checked { border-color:var(--primary); background:#eef2ff; }
+        .entry-select-item img { width:80px; height:60px; object-fit:cover; border-radius:6px; background:#e2e8f0; } .entry-select-item .entry-word { font-size:11px; margin-top:4px; font-weight:500; }
+        .entry-select-item .check-mark { position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:var(--primary); color:#fff; display:none; align-items:center; justify-content:center; font-size:12px; } .entry-select-item.checked .check-mark { display:flex; }
+        .preview-image-large { width:100%; max-height:450px; object-fit:contain; border-radius:12px; background:#f1f5f9; margin-bottom:16px; }
+        .preview-word-large { text-align:center; font-size:28px; font-weight:700; color:var(--primary); letter-spacing:2px; margin-bottom:16px; }
+        .result-summary { text-align:center; padding:20px; background:#f0fdf4; border-radius:var(--radius-sm); margin-bottom:16px; } .result-summary.perfect { background:#fef3c7; }
+        .toast-container { position:fixed; top:24px; right:24px; z-index:300; display:flex; flex-direction:column; gap:10px; }
+        .toast { background:#fff; padding:14px 20px; border-radius:10px; box-shadow:var(--shadow-lg); font-weight:500; font-size:14px; animation:slideInRight .35s ease; border-left:4px solid var(--primary); max-width:380px; display:flex; align-items:center; gap:10px; } .toast.success { border-left-color:var(--success); } .toast.error { border-left-color:var(--danger); } .toast.warning { border-left-color:var(--warning); }
+        .admin-tabs { display:flex; gap:4px; margin-bottom:20px; } .admin-tab { padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:500; font-size:14px; border:none; background:transparent; color:var(--text-light); font-family:var(--font); transition:var(--transition); } .admin-tab:hover { background:#f1f5f9; color:var(--text); } .admin-tab.active { background:#eef2ff; color:var(--primary); font-weight:600; }
+        .status-bar { text-align:center; padding:4px; font-size:11px; color:var(--text-light); background:#fafbfc; border-bottom:1px solid var(--border); }
+        .status-bar .dot-online { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success); margin-right:4px; }
+        @media (max-width:768px) {
+            .login-card { padding:32px 20px 28px; } .login-title { font-size:22px; }
+            .navbar { padding:0 12px; height:auto; min-height:56px; gap:8px; padding-top:8px; padding-bottom:8px; } .nav-brand { font-size:16px; } .nav-link { padding:6px 10px; font-size:12px; }
+            .main-content { padding:16px 10px; } .gallery-grid,.comp-answer-grid { grid-template-columns:1fr; }
+            .modal { padding:20px; width:96vw; } .entry-select-grid { grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); } .rank-table { font-size:12px; } .rank-table th,.rank-table td { padding:8px 6px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录 -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-icon">🖼️</div>
+            <div class="login-title">图片词库平台</div>
+            <div class="login-subtitle">输入<strong>7位学号</strong>登录（多端同步）<br>管理员请使用 <strong>0000000</strong></div>
+            <div class="input-group">
+                <input type="text" id="studentIdInput" placeholder="请输入7位学号" maxlength="7" autocomplete="off" inputmode="numeric">
+            </div>
+            <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()">进入平台</button>
+            <div style="margin-top:12px;font-size:12px;color:#94a3b8;">所有设备访问同一地址即可实时同步</div>
+        </div>
+    </div>
+
+    <!-- 主应用 -->
+    <div class="app-container" id="appContainer">
+        <div class="status-bar"><span class="dot-online"></span> 多端同步模式 · 数据实时共享</div>
+        <nav class="navbar">
+            <div class="nav-brand"><span>🖼️</span> 图片词库<span class="dot"></span></div>
+            <div class="nav-links" id="navLinks">
+                <button class="nav-link active" data-page="gallery">📷 图库浏览</button>
+                <button class="nav-link" data-page="competition">🏆 竞赛</button>
+                <button class="nav-link" data-page="ranking">📊 排名</button>
+                <button class="nav-link admin-only" data-page="admin" style="display:none;">⚙️ 管理</button>
+            </div>
+            <div class="nav-user">
+                <div class="avatar" id="userAvatar">?</div>
+                <span id="userDisplay">未登录</span>
+                <button class="btn btn-sm btn-outline" onclick="handleLogout()">↪</button>
+            </div>
+        </nav>
+        <div class="main-content">
+            <!-- 图库 -->
+            <div class="page active" id="page-gallery">
+                <div class="page-title">📷 图片词库</div>
+                <div class="page-subtitle">点击图片查看大图和对应词语</div>
+                <div class="gallery-grid" id="galleryGrid"><div class="empty-state"><p>加载中...</p></div></div>
+            </div>
+            <!-- 竞赛列表 -->
+            <div class="page" id="page-competition">
+                <div class="page-title">🏆 竞赛挑战</div>
+                <div class="page-subtitle">选择一场竞赛，识别图片中的吉祥图案，提交答案参与排名</div>
+                <div class="competition-list" id="competitionList"><div class="empty-state"><p>加载中...</p></div></div>
+            </div>
+            <!-- 竞赛答题 -->
+            <div class="page" id="page-comp-detail">
+                <div class="page-title" id="compDetailTitle"></div>
+                <div class="page-subtitle" id="compDetailSubtitle"></div>
+                <div class="comp-answer-grid" id="compAnswerGrid"></div>
+                <div id="compResult"></div>
+                <div style="margin-top:24px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="switchPage('competition')">↩ 返回竞赛列表</button>
+                    <button class="btn btn-primary btn-sm" id="compSubmitBtn" onclick="submitCompetition()">✅ 提交全部答案</button>
+                </div>
+            </div>
+            <!-- 排名 -->
+            <div class="page" id="page-ranking">
+                <div class="page-title">📊 排名总览</div>
+                <div class="page-subtitle">各竞赛成绩排名 & 综合排名</div>
+                <div style="margin-bottom:20px;">
+                    <label style="font-weight:600;font-size:14px;margin-right:8px;">选择竞赛:</label>
+                    <select id="rankCompSelect" onchange="refreshRanking()" style="padding:8px 14px;border:2px solid var(--border);border-radius:8px;font-size:14px;font-family:var(--font);"><option value="all">🏆 综合总排名</option></select>
+                </div>
+                <div style="overflow-x:auto;"><table class="rank-table"><thead><tr><th>排名</th><th>学号</th><th>正确数/总数</th><th>正确率</th><th>提交时间</th></tr></thead><tbody id="rankTableBody"><tr><td colspan="5" class="empty-state"><p>加载中...</p></td></tr></tbody></table></div>
+            </div>
+            <!-- 管理 -->
+            <div class="page" id="page-admin">
+                <div class="page-title">⚙️ 后台管理</div>
+                <div class="admin-tabs">
+                    <button class="admin-tab active" data-admin-tab="entries">📋 词条管理</button>
+                    <button class="admin-tab" data-admin-tab="competitions">🏆 竞赛管理</button>
+                </div>
+                <div id="admin-entries">
+                    <div class="card"><div class="card-header"><span class="card-title">所有词条</span><button class="btn btn-primary btn-sm" onclick="openAddModal()">+ 添加新词条</button></div><div id="adminList"></div></div>
+                </div>
+                <div id="admin-competitions" style="display:none;">
+                    <div class="card"><div class="card-header"><span class="card-title">所有竞赛</span><button class="btn btn-primary btn-sm" onclick="openCompModal()">+ 创建新竞赛</button></div><div id="adminCompList"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 词条编辑弹窗 -->
+    <div class="modal-overlay" id="editModal" style="display:none;">
+        <div class="modal">
+            <h3 id="modalTitle"></h3>
+            <div class="form-group"><label>📷 选择图片（可滚动浏览）</label><div class="preset-images" id="presetImages"></div><img class="image-preview" id="imagePreview" src="" alt="预览" style="display:none;"><input type="text" id="eImageUrl" placeholder="或手动输入图片文件名" style="margin-top:8px;"></div>
+            <div class="form-group"><label>🏷️ 对应词语</label><input type="text" id="eWord" placeholder="输入图片对应的词语"></div>
+            <div class="form-group"><label>📢 发布状态</label><select id="ePublished"><option value="true">✅ 已发布</option><option value="false">📝 草稿</option></select></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;"><button class="btn btn-outline btn-sm" onclick="closeEditModal()">取消</button><button class="btn btn-primary btn-sm" id="saveBtn" onclick="saveEntry()">💾 保存</button></div>
+            <input type="hidden" id="editingId" value="">
+        </div>
+    </div>
+
+    <!-- 竞赛编辑弹窗 -->
+    <div class="modal-overlay" id="compModal" style="display:none;">
+        <div class="modal wide">
+            <h3 id="compModalTitle"></h3>
+            <div class="form-group"><label>🏆 竞赛标题</label><input type="text" id="cTitle"></div>
+            <div class="form-group"><label>📝 竞赛说明</label><textarea id="cDesc"></textarea></div>
+            <div class="form-group"><label>🖼️ 从图库选择题目（可多选，蓝色高亮）</label><div class="form-hint">已选 <strong id="cSelectedCount">0</strong> 张图片</div><div class="entry-select-grid" id="entrySelectGrid"></div></div>
+            <div class="form-group"><label>📢 发布状态</label><select id="cPublished"><option value="true">✅ 已发布</option><option value="false">📝 草稿</option></select></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;"><button class="btn btn-outline btn-sm" onclick="closeCompModal()">取消</button><button class="btn btn-primary btn-sm" id="saveCompBtn" onclick="saveCompetition()">💾 保存</button></div>
+            <input type="hidden" id="editingCompId" value="">
+        </div>
+    </div>
+
+    <!-- 大图预览 -->
+    <div class="modal-overlay" id="previewModal" style="display:none;"><div class="modal" id="previewModalContent"></div></div>
+    <!-- Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    (function() {
+        var ADMIN_ID = '0000000';
+        var currentUser = null;   // 当前登录学号
+        var currentCompId = null;  // 当前正在答题的竞赛ID
+
+        // 121张本地图片
+        var PRESET_IMAGES = [
+            {url:'一品当朝 高升一品.png',label:'一品当朝 高升一品'},{url:'一路连科.jpg',label:'一路连科'},{url:'一鸣惊人.jpg',label:'一鸣惊人'},{url:'万福流云（1）.jpg',label:'万福流云（1）'},{url:'万福流云（2）.jpg',label:'万福流云（2）'},{url:'三羊开泰.png',label:'三羊开泰'},{url:'不朽.png',label:'不朽'},{url:'事业有成 学业有成.jpg',label:'事业有成 学业有成'},{url:'事事如意.jpg',label:'事事如意'},{url:'五福和合.jpg',label:'五福和合'},{url:'五福捧寿.jpg',label:'五福捧寿'},{url:'五福朝阳.jpg',label:'五福朝阳'},{url:'亭亭玉立.jpg',label:'亭亭玉立'},{url:'代代数钱.png',label:'代代数钱'},{url:'代代长寿.jpg',label:'代代长寿'},{url:'传春报喜（1）.jpg',label:'传春报喜（1）'},{url:'传春报喜（2）.jpg',label:'传春报喜（2）'},{url:'兰桂齐芳 甲及状元.png',label:'兰桂齐芳 甲及状元'},{url:'兰桂齐芳.jpg',label:'兰桂齐芳'},{url:'刘海戏金蟾.jpg',label:'刘海戏金蟾'},{url:'功名富贵.png',label:'功名富贵'},{url:'吉祥平安.jpg',label:'吉祥平安'},{url:'和合.jpg',label:'和合'},{url:'喜上眉梢.jpg',label:'喜上眉梢'},{url:'喜从天降.png',label:'喜从天降'},{url:'喜得连科（1）.jpg',label:'喜得连科（1）'},{url:'喜得连科（2）.jpg',label:'喜得连科（2）'},{url:'四君子.png',label:'四君子'},{url:'国色天香.jpg',label:'国色天香'},{url:'多子多福.png',label:'多子多福'},{url:'大业有成.png',label:'大业有成'},{url:'天仙寿芝.png',label:'天仙寿芝'},{url:'夫妻恩爱.jpg',label:'夫妻恩爱'},{url:'好运常来.png',label:'好运常来'},{url:'如意.jpg',label:'如意'},{url:'宝鸭串莲.jpg',label:'宝鸭串莲'},{url:'富甲天下.jpg',label:'富甲天下'},{url:'富贵满堂.jpg',label:'富贵满堂'},{url:'富足.jpg',label:'富足'},{url:'封侯拜相（1）.jpg',label:'封侯拜相（1）'},{url:'封侯拜相（2）.jpg',label:'封侯拜相（2）'},{url:'岁寒三友.png',label:'岁寒三友'},{url:'岁寒三友一竹.jpg',label:'岁寒三友一竹'},{url:'岁岁平安.png',label:'岁岁平安'},{url:'平安圆满.jpg',label:'平安圆满'},{url:'平安富贵（1）.png',label:'平安富贵（1）'},{url:'平安富贵（2）.png',label:'平安富贵（2）'},{url:'平安长寿.png',label:'平安长寿'},{url:'平平安安 安居乐业.png',label:'平平安安 安居乐业'},{url:'平平安安 有福相伴.jpg',label:'平平安安 有福相伴'},{url:'平平安安.jpg',label:'平平安安'},{url:'年年有余.jpg',label:'年年有余'},{url:'弯弯顺.jpg',label:'弯弯顺'},{url:'必得幸福.png',label:'必得幸福'},{url:'扬善驱邪.jpg',label:'扬善驱邪'},{url:'扬眉吐气.jpg',label:'扬眉吐气'},{url:'指日高升.png',label:'指日高升'},{url:'接连高中.png',label:'接连高中'},{url:'旗开得胜.png',label:'旗开得胜'},{url:'无量寿.jpg',label:'无量寿'},{url:'时来运转.jpg',label:'时来运转'},{url:'横行天下 八方来财.png',label:'横行天下 八方来财'},{url:'爱情永恒.png',label:'爱情永恒'},{url:'独占鳌头.jpg',label:'独占鳌头'},{url:'玉握.jpg',label:'玉握'},{url:'知足常乐.jpg',label:'知足常乐'},{url:'知足常乐.png',label:'知足常乐'},{url:'福分无疆.jpg',label:'福分无疆'},{url:'福叠.jpg',label:'福叠'},{url:'福在眼前.jpg',label:'福在眼前'},{url:'福寿双全（1）.jpg',label:'福寿双全（1）'},{url:'福寿双全（2）.jpg',label:'福寿双全（2）'},{url:'福寿双全（3）.jpg',label:'福寿双全（3）'},{url:'福寿如意（1）.jpg',label:'福寿如意（1）'},{url:'福寿如意（2）.jpg',label:'福寿如意（2）'},{url:'福瓜.jpg',label:'福瓜'},{url:'福禄.jpg',label:'福禄'},{url:'福禄寿.jpg',label:'福禄寿'},{url:'福缘善庆.png',label:'福缘善庆'},{url:'福运连连.png',label:'福运连连'},{url:'竹报平安.jpg',label:'竹报平安'},{url:'笑纳百财.jpg',label:'笑纳百财'},{url:'红红火火.jpg',label:'红红火火'},{url:'纳福迎祥（1）.jpg',label:'纳福迎祥（1）'},{url:'纳福迎祥（2）.jpg',label:'纳福迎祥（2）'},{url:'绝处逢生.jpg',label:'绝处逢生'},{url:'群仙祝寿.jpg',label:'群仙祝寿'},{url:'耄耋.jpg',label:'耄耋'},{url:'聪明伶俐（1）.jpg',label:'聪明伶俐（1）'},{url:'聪明伶俐（2）.jpg',label:'聪明伶俐（2）'},{url:'节节高升.png',label:'节节高升'},{url:'英明神武（1）.jpg',label:'英明神武（1）'},{url:'英明神武（2）.jpg',label:'英明神武（2）'},{url:'英雄斗志（1）.jpg',label:'英雄斗志（1）'},{url:'英雄斗志（2）.jpg',label:'英雄斗志（2）'},{url:'荣华富贵.jpg',label:'荣华富贵'},{url:'路路通（1）.jpg',label:'路路通（1）'},{url:'路路通（2）.jpg',label:'路路通（2）'},{url:'路路通（3）.jpg',label:'路路通（3）'},{url:'连中三元.jpg',label:'连中三元'},{url:'连年有余（1）.jpg',label:'连年有余（1）'},{url:'连年有余（2）.jpg',label:'连年有余（2）'},{url:'连年有余（3）.png',label:'连年有余（3）'},{url:'连生贵子 子孙繁荣.jpg',label:'连生贵子 子孙繁荣'},{url:'金玉满堂 多子多福 子孙满堂.jpg',label:'金玉满堂 多子多福 子孙满堂'},{url:'长命百岁 甜甜蜜蜜.jpg',label:'长命百岁 甜甜蜜蜜'},{url:'长命百岁.png',label:'长命百岁'},{url:'长寿.jpg',label:'长寿'},{url:'长生不老.jpg',label:'长生不老'},{url:'青娇（青年才俊）.jpg',label:'青娇（青年才俊）'},{url:'顶呱呱.png',label:'顶呱呱'},{url:'马上封侯.jpg',label:'马上封侯'},{url:'马到成功.png',label:'马到成功'},{url:'鸳鸯比翼.png',label:'鸳鸯比翼'},{url:'鹤鸣九皋 一鸣惊人.jpg',label:'鹤鸣九皋 一鸣惊人'},{url:'鹤鹿同春.png',label:'鹤鹿同春'},{url:'鹤鹿同春（2）.png',label:'鹤鹿同春（2）'},{url:'麒麟吐（负）书.jpg',label:'麒麟吐（负）书'},{url:'麒麟献瑞.jpg',label:'麒麟献瑞'},{url:'麒麟送子.jpg',label:'麒麟送子'},{url:'龟鹤齐龄.jpg',label:'龟鹤齐龄'}
+        ];
+
+        // ======================== API 层 ========================
+        function api(path, method, body) {
+            var opts = { method: method, headers: {} };
+            if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+            return fetch(path, opts).then(function(r) { return r.json(); });
+        }
+
+        // 词条
+        function loadEntries() { return api('/api/entries', 'GET'); }
+        function saveEntries(data) { return api('/api/entries', 'PUT', data); }
+        // 竞赛
+        function loadComps() { return api('/api/competitions', 'GET'); }
+        function saveComps(data) { return api('/api/competitions', 'PUT', data); }
+        // 记录
+        function loadRecords() { return api('/api/records', 'GET'); }
+        function saveRecords(data) { return api('/api/records', 'PUT', data); }
+        function addRecord(data) { return api('/api/records', 'POST', data); }
+        // 用户
+        function loadUsers() { return api('/api/users', 'GET'); }
+        function saveUsers(data) { return api('/api/users', 'PUT', data); }
+        // 登录
+        function loginAPI(sid) { return api('/api/login', 'POST', { studentId: sid }); }
+
+        // 缓存
+        var cache = { entries: null, comps: null, records: null, users: null };
+        async function refreshCache() {
+            var results = await Promise.all([loadEntries(), loadComps(), loadRecords(), loadUsers()]);
+            cache.entries = results[0]; cache.comps = results[1]; cache.records = results[2]; cache.users = results[3];
+        }
+
+        function gid() { return 'x_'+Date.now()+'_'+Math.random().toString(36).substr(2,6); }
+        function isAdmin(s) { return s === ADMIN_ID; }
+
+        // ======================== Toast ========================
+        function toast(m,t){ t=t||''; var c=document.getElementById('toastContainer'); var d=document.createElement('div'); d.className='toast '+t; var i={success:'✅',error:'❌',warning:'⚠️'}; d.innerHTML='<span>'+(i[t]||'ℹ️')+'</span> '+m; c.appendChild(d); setTimeout(function(){d.style.opacity='0';d.style.transform='translateX(40px)';d.style.transition='.3s ease';setTimeout(function(){d.remove()},300)},2800); }
+
+        // ======================== 登录 ========================
+        async function handleLogin(){
+            var inp=document.getElementById('studentIdInput'); var sid=inp.value.trim();
+            if(!/^\d{7}$/.test(sid)){ toast('请输入有效的7位数字学号','error'); return; }
+            var btn=document.getElementById('loginBtn'); btn.disabled=true; btn.textContent='登录中...';
+            try {
+                var res=await loginAPI(sid);
+                if(res.error){ toast(res.error,'error'); btn.disabled=false; btn.textContent='进入平台'; return; }
+                currentUser=sid;
+                await refreshCache();
+                document.getElementById('loginOverlay').style.display='none';
+                document.getElementById('appContainer').classList.add('active');
+                updateUI(); refreshAll();
+                toast('欢迎，'+sid+(isAdmin(sid)?' [管理员]':'')+' | 多端同步模式','success');
+            } catch(e){ toast('连接服务器失败，请确认服务器已启动','error'); btn.disabled=false; btn.textContent='进入平台'; }
+        }
+        function handleLogout(){
+            currentUser=null; cache={entries:null,comps:null,records:null,users:null};
+            document.getElementById('appContainer').classList.remove('active');
+            document.getElementById('loginOverlay').style.display='flex';
+            document.getElementById('studentIdInput').value=''; document.getElementById('studentIdInput').focus();
+        }
+        document.getElementById('studentIdInput').addEventListener('keydown',function(e){ if(e.key==='Enter') handleLogin(); });
+
+        // ======================== UI ========================
+        function updateUI(){
+            document.getElementById('userDisplay').textContent=currentUser;
+            document.getElementById('userAvatar').textContent=currentUser.substr(-2);
+            var adm=isAdmin(currentUser);
+            document.querySelectorAll('.admin-only').forEach(function(el){el.style.display=adm?'':'none'});
+            if(!adm&&document.getElementById('page-admin').classList.contains('active')) switchPage('gallery');
+        }
+        function switchPage(pn){
+            document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+            document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active')});
+            var pe=document.getElementById('page-'+pn); if(pe) pe.classList.add('active');
+            var nl=document.querySelector('.nav-link[data-page="'+pn+'"]'); if(nl) nl.classList.add('active');
+            if(pn==='gallery') refreshGallery();
+            if(pn==='competition') refreshCompList();
+            if(pn==='ranking') refreshRanking();
+            if(pn==='admin') refreshAdmin();
+        }
+        document.getElementById('navLinks').addEventListener('click',function(e){
+            if(e.target.classList.contains('nav-link')){ var pn=e.target.getAttribute('data-page'); if(pn&&!document.getElementById('page-comp-detail').classList.contains('active')) switchPage(pn); }
+        });
+        function refreshAll(){ refreshGallery(); refreshCompList(); refreshRanking(); refreshAdmin(); }
+
+        // ======================== 图库 ========================
+        function refreshGallery(){
+            var grid=document.getElementById('galleryGrid');
+            var pub=(cache.entries||[]).filter(function(e){return e.published});
+            if(!pub.length){ grid.innerHTML='<div class="empty-state"><div style="font-size:56px;opacity:0.7;">📭</div><p>暂无发布的图片词条</p></div>'; return; }
+            grid.innerHTML=pub.map(function(e){return '<div class="gallery-card card" onclick="openPreviewModal(\''+e.id+'\')"><img class="card-image" src="'+e.imageUrl+'" alt="'+e.word+'" loading="lazy" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23e2e8f0%22 width=%22400%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%2394a3b8%22 font-size=%2216%22>加载失败</text></svg>\'"><div class="word-display">'+e.word+'</div></div>'}).join(''); }
+        function openPreviewModal(eid){
+            var e=(cache.entries||[]).find(function(x){return x.id===eid}); if(!e) return;
+            document.getElementById('previewModalContent').innerHTML='<h3>📷 图片详情</h3><img class="preview-image-large" src="'+e.imageUrl+'" alt="'+e.word+'" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23e2e8f0%22 width=%22400%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%2394a3b8%22 font-size=%2216%22>加载失败</text></svg>\'"><div class="preview-word-large">'+e.word+'</div><div style="text-align:center"><button class="btn btn-outline btn-sm" onclick="closePreviewModal()">关闭</button></div>';
+            document.getElementById('previewModal').style.display='flex';
+        }
+        function closePreviewModal(){ document.getElementById('previewModal').style.display='none'; }
+
+        // ======================== 竞赛 ========================
+        function refreshCompList(){
+            var list=document.getElementById('competitionList');
+            var pub=(cache.comps||[]).filter(function(c){return c.published});
+            if(!pub.length){ list.innerHTML='<div class="empty-state"><div style="font-size:56px;opacity:0.7;">🏅</div><p>暂无可用竞赛</p></div>'; return; }
+            list.innerHTML=pub.map(function(c){
+                var count=(c.entryIds||[]).length;
+                var ur=(cache.records||[]).find(function(r){return r.competitionId===c.id&&r.studentId===currentUser});
+                var badge=ur?'<span class="badge badge-done">✅ 已完成 ('+ur.correctCount+'/'+ur.totalCount+')</span>':'<span class="badge badge-draft">⏳ 待挑战</span>';
+                var parts=new Set((cache.records||[]).filter(function(r){return r.competitionId===c.id}).map(function(r){return r.studentId})).size;
+                return '<div class="card competition-item" onclick="enterCompetition(\''+c.id+'\')"><div class="card-header"><span class="card-title">🏆 '+c.title+'</span>'+badge+'</div><div style="font-size:14px;margin-bottom:8px;">'+(c.desc||'')+'</div><div class="comp-meta"><span>📝 '+count+' 题</span><span>👥 '+parts+' 人参与</span></div></div>';
+            }).join('');
+        }
+
+        function enterCompetition(cid){
+            var comp=(cache.comps||[]).find(function(c){return c.id===cid}); if(!comp) return;
+            var ur=(cache.records||[]).find(function(r){return r.competitionId===cid&&r.studentId===currentUser});
+            if(ur){ toast('你已参加过此竞赛！正确率: '+ur.correctCount+'/'+ur.totalCount,'warning'); }
+            currentCompId=cid;
+            var entries=cache.entries||[];
+            var compEntries=comp.entryIds.map(function(eid){return entries.find(function(e){return e.id===eid})}).filter(Boolean);
+            document.getElementById('compDetailTitle').textContent='🏆 '+comp.title;
+            document.getElementById('compDetailSubtitle').textContent=(comp.desc||'')+' — 共 '+compEntries.length+' 题';
+            document.getElementById('compResult').innerHTML='';
+            document.getElementById('compAnswerGrid').innerHTML=compEntries.map(function(entry,idx){
+                return '<div class="comp-answer-card card"><div class="entry-index">第 '+(idx+1)+' 题</div><img class="card-image" src="'+entry.imageUrl+'" loading="lazy" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23e2e8f0%22 width=%22400%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%2394a3b8%22 font-size=%2216%22>加载失败</text></svg>\'"><input class="comp-input answer-input" data-entry-id="'+entry.id+'" placeholder="输入对应词语" autocomplete="off"></div>';
+            }).join('');
+            document.getElementById('compSubmitBtn').style.display='inline-flex';
+            if(ur&&ur.answers){
+                document.querySelectorAll('.answer-input').forEach(function(inp){
+                    var eid=inp.getAttribute('data-entry-id');
+                    var prev=ur.answers.find(function(a){return a.entryId===eid});
+                    if(prev){ inp.value=prev.answer; inp.disabled=true; inp.classList.add(prev.isCorrect?'correct':'wrong'); }
+                });
+                document.getElementById('compSubmitBtn').style.display='none';
+                showResult(ur);
+            }
+            switchToPage('comp-detail');
+            setTimeout(function(){ var fi=document.querySelector('.answer-input:not([disabled])'); if(fi) fi.focus(); },300);
+        }
+        function switchToPage(pn){
+            document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+            document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active')});
+            var pe=document.getElementById('page-'+pn); if(pe) pe.classList.add('active');
+        }
+        function showResult(rec){
+            document.getElementById('compResult').innerHTML='<div class="result-summary'+(rec.correctCount===rec.totalCount?' perfect':'')+'"><div style="font-size:18px;font-weight:700;">'+(rec.correctCount===rec.totalCount?'🎉 满分通过！':'📋 你的成绩')+'</div><div style="font-size:28px;font-weight:700;color:var(--primary);margin:8px 0;">'+rec.correctCount+' / '+rec.totalCount+'</div><div style="font-size:13px;color:var(--text-light);">正确率: '+Math.round(rec.correctCount/rec.totalCount*100)+'% | '+new Date(rec.timestamp).toLocaleString('zh-CN')+'</div></div>';
+        }
+
+        async function submitCompetition(){
+            if(!currentCompId){ toast('竞赛信息丢失','error'); return; }
+            var comp=(cache.comps||[]).find(function(c){return c.id===currentCompId}); if(!comp) return;
+            if((cache.records||[]).find(function(r){return r.competitionId===currentCompId&&r.studentId===currentUser})){ toast('你已提交过此竞赛','warning'); return; }
+            var inputs=document.querySelectorAll('.answer-input');
+            var answers=[]; var allFilled=true;
+            inputs.forEach(function(inp){ var v=inp.value.trim(); if(!v) allFilled=false; answers.push({entryId:inp.getAttribute('data-entry-id'),answer:v}); });
+            if(!allFilled){ toast('请填写所有题目','warning'); return; }
+            if(!confirm('确定提交？提交后不可修改。')) return;
+            var entries=cache.entries||[];
+            var correctCount=0;
+            answers.forEach(function(a){ var e=entries.find(function(e){return e.id===a.entryId}); if(e&&a.answer===e.word){a.isCorrect=true;correctCount++}else{a.isCorrect=false} });
+            var rec={competitionId:currentCompId,studentId:currentUser,answers:answers,correctCount:correctCount,totalCount:answers.length,timestamp:Date.now()};
+            try {
+                await addRecord(rec);
+                await refreshCache();
+                document.querySelectorAll('.answer-input').forEach(function(inp){ inp.disabled=true; var a=answers.find(function(x){return x.entryId===inp.getAttribute('data-entry-id')}); if(a&&a.isCorrect) inp.classList.add('correct'); else inp.classList.add('wrong'); });
+                document.getElementById('compSubmitBtn').style.display='none';
+                showResult(rec);
+                toast('提交成功！正确率: '+correctCount+'/'+answers.length, correctCount===answers.length?'success':'warning');
+                refreshCompList(); refreshRanking();
+            } catch(e){ toast('提交失败，请检查网络','error'); }
+        }
+
+        // ======================== 排名 ========================
+        function refreshRanking(){
+            var select=document.getElementById('rankCompSelect');
+            var comps=(cache.comps||[]).filter(function(c){return c.published});
+            var prev=select.value;
+            select.innerHTML='<option value="all">🏆 综合总排名</option>';
+            comps.forEach(function(c){ select.innerHTML+='<option value="'+c.id+'">'+c.title+'</option>'; });
+            if(comps.find(function(c){return c.id===prev})) select.value=prev;
+            var tbody=document.getElementById('rankTableBody');
+            if(select.value==='all'){
+                var agg={};
+                (cache.records||[]).forEach(function(r){
+                    if(!agg[r.studentId]) agg[r.studentId]={studentId:r.studentId,totalCorrect:0,totalQuestions:0,latestTime:0};
+                    agg[r.studentId].totalCorrect+=r.correctCount; agg[r.studentId].totalQuestions+=r.totalCount;
+                    if(r.timestamp>agg[r.studentId].latestTime) agg[r.studentId].latestTime=r.timestamp;
+                });
+                var sorted=Object.values(agg).sort(function(a,b){return b.totalCorrect!==a.totalCorrect?b.totalCorrect-a.totalCorrect:a.latestTime-b.latestTime});
+                if(!sorted.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state"><p>暂无数据</p></td></tr>'; return; }
+                tbody.innerHTML=sorted.map(function(s,idx){
+                    var rc='rank-other'; if(idx===0) rc='rank-1'; else if(idx===1) rc='rank-2'; else if(idx===2) rc='rank-3';
+                    var medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'';
+                    return '<tr class="'+(s.studentId===currentUser?'highlight-row':'')+'"><td><span class="rank-badge '+rc+'">'+(medal||(idx+1))+'</span></td><td><strong>'+s.studentId+'</strong>'+(s.studentId===currentUser?' <span style="font-size:11px;color:var(--primary);">(你)</span>':'')+'</td><td>'+s.totalCorrect+' / '+s.totalQuestions+'</td><td>'+Math.round(s.totalCorrect/s.totalQuestions*100)+'%</td><td style="font-size:12px;color:var(--text-light);">'+new Date(s.latestTime).toLocaleString('zh-CN')+'</td></tr>';
+                }).join('');
+            } else {
+                var cr=(cache.records||[]).filter(function(r){return r.competitionId===select.value});
+                cr.sort(function(a,b){return b.correctCount!==a.correctCount?b.correctCount-a.correctCount:a.timestamp-b.timestamp});
+                if(!cr.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state"><p>暂无数据</p></td></tr>'; return; }
+                tbody.innerHTML=cr.map(function(r,idx){
+                    var rc='rank-other'; if(idx===0) rc='rank-1'; else if(idx===1) rc='rank-2'; else if(idx===2) rc='rank-3';
+                    var medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'';
+                    return '<tr class="'+(r.studentId===currentUser?'highlight-row':'')+'"><td><span class="rank-badge '+rc+'">'+(medal||(idx+1))+'</span></td><td><strong>'+r.studentId+'</strong>'+(r.studentId===currentUser?' <span style="font-size:11px;color:var(--primary);">(你)</span>':'')+'</td><td>'+r.correctCount+' / '+r.totalCount+'</td><td>'+Math.round(r.correctCount/r.totalCount*100)+'%</td><td style="font-size:12px;color:var(--text-light);">'+new Date(r.timestamp).toLocaleString('zh-CN')+'</td></tr>';
+                }).join('');
+            }
+        }
+
+        // ======================== 管理 ========================
+        function refreshAdmin(){ refreshAdminEntries(); refreshAdminComps(); }
+        function refreshAdminEntries(){
+            var entries=cache.entries||[]; var c=document.getElementById('adminList');
+            if(!entries.length){ c.innerHTML='<div class="empty-state"><div style="font-size:56px;opacity:0.7;">📋</div><p>还没有词条</p></div>'; return; }
+            c.innerHTML=entries.map(function(e,idx){return '<div class="card" style="padding:16px 20px;"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;"><img src="'+e.imageUrl+'" style="width:70px;height:52px;object-fit:cover;border-radius:8px;background:#f1f5f9;flex-shrink:0;" loading="lazy" onerror="this.style.display=\'none\'"><div style="flex:1;min-width:180px;"><div style="font-weight:600;">#'+(idx+1)+' <span style="color:var(--primary);font-size:18px;">'+e.word+'</span></div><div style="font-size:12px;color:var(--text-light);">'+e.imageUrl+'</div><div style="margin-top:4px;">'+(e.published?'<span class="badge badge-published">✅ 已发布</span>':'<span class="badge badge-draft">📝 草稿</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm '+(e.published?'btn-outline':'btn-success')+'" onclick="togglePublish(\''+e.id+'\')">'+(e.published?'⬇ 取消发布':'📢 发布')+'</button><button class="btn btn-sm btn-outline" onclick="openEditModal(\''+e.id+'\')">✏️ 编辑</button><button class="btn btn-sm btn-danger" onclick="deleteEntry(\''+e.id+'\')">🗑️ 删除</button></div></div></div>'}).join(''); }
+        function refreshAdminComps(){
+            var comps=cache.comps||[]; var c=document.getElementById('adminCompList');
+            if(!comps.length){ c.innerHTML='<div class="empty-state"><div style="font-size:56px;opacity:0.7;">🏆</div><p>还没有竞赛</p></div>'; return; }
+            c.innerHTML=comps.map(function(cmp,idx){var cnt=(cmp.entryIds||[]).length;return '<div class="card" style="padding:16px 20px;"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;"><div style="flex:1;min-width:180px;"><div style="font-weight:600;">#'+(idx+1)+' 🏆 '+cmp.title+'</div><div style="font-size:13px;color:var(--text-light);">'+(cmp.desc||'')+'</div><div style="font-size:12px;color:var(--text-light);">📝 '+cnt+' 题</div><div style="margin-top:4px;">'+(cmp.published?'<span class="badge badge-published">✅ 已发布</span>':'<span class="badge badge-draft">📝 草稿</span>')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm '+(cmp.published?'btn-outline':'btn-success')+'" onclick="toggleCompPublish(\''+cmp.id+'\')">'+(cmp.published?'⬇ 取消发布':'📢 发布')+'</button><button class="btn btn-sm btn-outline" onclick="openCompModal(\''+cmp.id+'\')">✏️ 编辑</button><button class="btn btn-sm btn-danger" onclick="deleteCompetition(\''+cmp.id+'\')">🗑️ 删除</button></div></div></div>'}).join(''); }
+
+        async function togglePublish(eid){
+            var entries=cache.entries||[]; var e=entries.find(function(x){return x.id===eid}); if(!e) return;
+            e.published=!e.published;
+            await saveEntries(entries); await refreshCache(); refreshAll(); toast(e.published?'词条已发布':'词条已取消发布','success');
+        }
+        async function deleteEntry(eid){
+            if(!confirm('确定删除此词条？')) return;
+            var entries=(cache.entries||[]).filter(function(e){return e.id!==eid});
+            cache.comps.forEach(function(c){c.entryIds=c.entryIds.filter(function(id){return id!==eid})});
+            await saveEntries(entries); await saveComps(cache.comps); await refreshCache(); refreshAll(); toast('词条已删除','warning');
+        }
+        async function toggleCompPublish(cid){
+            var comps=cache.comps||[]; var c=comps.find(function(x){return x.id===cid}); if(!c) return;
+            c.published=!c.published;
+            await saveComps(comps); await refreshCache(); refreshAll(); toast(c.published?'竞赛已发布':'竞赛已取消发布','success');
+        }
+        async function deleteCompetition(cid){
+            if(!confirm('确定删除此竞赛？相关记录也将清除。')) return;
+            cache.comps=(cache.comps||[]).filter(function(c){return c.id!==cid});
+            cache.records=(cache.records||[]).filter(function(r){return r.competitionId!==cid});
+            await saveComps(cache.comps); await saveRecords(cache.records); await refreshCache(); refreshAll(); toast('竞赛已删除','warning');
+        }
+
+        // ======================== 词条弹窗 ========================
+        function openAddModal(){
+            document.getElementById('modalTitle').textContent='添加新词条';
+            document.getElementById('eImageUrl').value=''; document.getElementById('eWord').value='';
+            document.getElementById('ePublished').value='true'; document.getElementById('editingId').value='';
+            document.getElementById('imagePreview').style.display='none';
+            renderPresetImages(); document.getElementById('editModal').style.display='flex';
+            document.querySelectorAll('.preset-thumb').forEach(function(t){t.classList.remove('selected')});
+        }
+        function openEditModal(eid){
+            var e=(cache.entries||[]).find(function(x){return x.id===eid}); if(!e) return;
+            document.getElementById('modalTitle').textContent='编辑词条';
+            document.getElementById('eImageUrl').value=e.imageUrl; document.getElementById('eWord').value=e.word;
+            document.getElementById('ePublished').value=e.published?'true':'false'; document.getElementById('editingId').value=eid;
+            renderPresetImages(); updateImagePreview(e.imageUrl); document.getElementById('editModal').style.display='flex';
+            document.querySelectorAll('.preset-thumb').forEach(function(t){t.classList.toggle('selected',t.getAttribute('data-url')===e.imageUrl)});
+        }
+        function closeEditModal(){ document.getElementById('editModal').style.display='none'; }
+        function renderPresetImages(){
+            document.getElementById('presetImages').innerHTML=PRESET_IMAGES.map(function(img){return '<img class="preset-thumb" src="'+img.url+'" alt="'+img.label+'" data-url="'+img.url+'" title="'+img.label+'" loading="lazy" onclick="selectPresetImage(\''+img.url+'\',this)" onerror="this.style.display=\'none\'">'}).join('');
+        }
+        function selectPresetImage(url,el){
+            document.getElementById('eImageUrl').value=url;
+            document.querySelectorAll('.preset-thumb').forEach(function(t){t.classList.remove('selected')});
+            el.classList.add('selected'); updateImagePreview(url);
+            var f=PRESET_IMAGES.find(function(img){return img.url===url});
+            if(f&&!document.getElementById('eWord').value) document.getElementById('eWord').value=f.label;
+        }
+        function updateImagePreview(url){ var p=document.getElementById('imagePreview'); if(url){p.src=url;p.style.display='block';p.onerror=function(){p.style.display='none'}}else{p.style.display='none'} }
+        document.getElementById('eImageUrl').addEventListener('input',function(){updateImagePreview(this.value);document.querySelectorAll('.preset-thumb').forEach(function(t){t.classList.toggle('selected',t.getAttribute('data-url')===this.value)})});
+        async function saveEntry(){
+            var imageUrl=document.getElementById('eImageUrl').value.trim();
+            var word=document.getElementById('eWord').value.trim();
+            var published=document.getElementById('ePublished').value==='true';
+            var editingId=document.getElementById('editingId').value;
+            if(!imageUrl||!word){ toast('请填写图片和词语','error'); return; }
+            var entries=cache.entries||[];
+            if(editingId){ var e=entries.find(function(x){return x.id===editingId}); if(e){e.imageUrl=imageUrl;e.word=word;e.published=published} }
+            else { entries.push({id:gid(),imageUrl:imageUrl,word:word,published:published,createdAt:Date.now()}); }
+            await saveEntries(entries); await refreshCache(); closeEditModal(); refreshAll(); toast(editingId?'词条已更新':'新词条已创建','success');
+        }
+
+        // ======================== 竞赛弹窗 ========================
+        var compSelected=[];
+        function openCompModal(cid){
+            compSelected=[];
+            if(cid){ var c=(cache.comps||[]).find(function(x){return x.id===cid}); if(!c) return;
+                document.getElementById('compModalTitle').textContent='编辑竞赛';
+                document.getElementById('cTitle').value=c.title; document.getElementById('cDesc').value=c.desc||'';
+                document.getElementById('cPublished').value=c.published?'true':'false';
+                document.getElementById('editingCompId').value=cid; compSelected=(c.entryIds||[]).slice();
+            } else {
+                document.getElementById('compModalTitle').textContent='创建新竞赛';
+                document.getElementById('cTitle').value=''; document.getElementById('cDesc').value='';
+                document.getElementById('cPublished').value='true'; document.getElementById('editingCompId').value='';
+            }
+            renderEntrySelectGrid(); document.getElementById('compModal').style.display='flex';
+        }
+        function closeCompModal(){ document.getElementById('compModal').style.display='none'; }
+        function renderEntrySelectGrid(){
+            var entries=cache.entries||[]; var grid=document.getElementById('entrySelectGrid');
+            if(!entries.length){grid.innerHTML='<div style="padding:16px;text-align:center;color:var(--text-light);grid-column:1/-1;">暂无词条</div>';return}
+            grid.innerHTML=entries.map(function(e){var c=compSelected.indexOf(e.id)>=0;return '<div class="entry-select-item'+(c?' checked':'')+'" onclick="toggleEntrySelect(\''+e.id+'\',this)"><div class="check-mark">✓</div><img src="'+e.imageUrl+'" loading="lazy" onerror="this.style.display=\'none\'"><div class="entry-word">'+e.word+'</div></div>'}).join('');
+            document.getElementById('cSelectedCount').textContent=compSelected.length;
+        }
+        function toggleEntrySelect(eid,el){ var i=compSelected.indexOf(eid); if(i>=0){compSelected.splice(i,1);el.classList.remove('checked')}else{compSelected.push(eid);el.classList.add('checked')} document.getElementById('cSelectedCount').textContent=compSelected.length; }
+        async function saveCompetition(){
+            var title=document.getElementById('cTitle').value.trim();
+            var desc=document.getElementById('cDesc').value.trim();
+            var published=document.getElementById('cPublished').value==='true';
+            var editingId=document.getElementById('editingCompId').value;
+            if(!title){toast('请填写竞赛标题','error');return}
+            if(!compSelected.length){toast('请至少选择一道题目','error');return}
+            var comps=cache.comps||[];
+            if(editingId){var c=comps.find(function(x){return x.id===editingId});if(c){c.title=title;c.desc=desc;c.published=published;c.entryIds=compSelected.slice()}}
+            else{comps.push({id:gid(),title:title,desc:desc,entryIds:compSelected.slice(),published:published,createdAt:Date.now()})}
+            await saveComps(comps); await refreshCache(); closeCompModal(); refreshAll(); toast(editingId?'竞赛已更新':'竞赛已创建','success');
+        }
+
+        // ======================== 管理标签 ========================
+        document.querySelector('.admin-tabs').addEventListener('click',function(e){
+            if(e.target.classList.contains('admin-tab')){
+                document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active')});
+                e.target.classList.add('active');
+                var tab=e.target.getAttribute('data-admin-tab');
+                document.getElementById('admin-entries').style.display=tab==='entries'?'':'none';
+                document.getElementById('admin-competitions').style.display=tab==='competitions'?'':'none';
+            }
+        });
+
+        // ======================== 弹窗关闭 ========================
+        document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeEditModal()});
+        document.getElementById('compModal').addEventListener('click',function(e){if(e.target===this)closeCompModal()});
+        document.getElementById('previewModal').addEventListener('click',function(e){if(e.target===this)closePreviewModal()});
+        document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeEditModal();closeCompModal();closePreviewModal()}});
+
+        // ======================== 自动刷新（多端同步） ========================
+        setInterval(async function(){
+            if(!currentUser) return;
+            try {
+                var results = await Promise.all([loadEntries(), loadComps(), loadRecords()]);
+                var changed = JSON.stringify(results[0]) !== JSON.stringify(cache.entries) || JSON.stringify(results[1]) !== JSON.stringify(cache.comps) || JSON.stringify(results[2]) !== JSON.stringify(cache.records);
+                if (changed) {
+                    cache.entries = results[0]; cache.comps = results[1]; cache.records = results[2];
+                    // 仅在非答题页时自动刷新UI
+                    if (!document.getElementById('page-comp-detail').classList.contains('active')) {
+                        refreshGallery(); refreshCompList(); refreshRanking(); refreshAdmin();
+                    }
+                }
+            } catch(e) { /* 静默失败 */ }
+        }, 5000); // 每5秒同步一次
+
+        // ======================== 初始化 ========================
+        async function init(){
+            // 尝试连接服务器
+            try {
+                var res = await loadEntries();
+                if (!Array.isArray(res)) { console.log('等待服务器启动...'); return; }
+                cache.entries = res;
+                cache.comps = await loadComps();
+                cache.records = await loadRecords();
+                cache.users = await loadUsers();
+
+                // 初始化默认数据（如果为空）
+                if (!cache.entries.length) {
+                    cache.entries = PRESET_IMAGES.map(function(img){return{id:gid(),imageUrl:img.url,word:img.label,published:true,createdAt:Date.now()-Math.floor(Math.random()*10000)}});
+                    await saveEntries(cache.entries);
+                }
+                if (!cache.users[ADMIN_ID]) { cache.users[ADMIN_ID]={role:'admin',createdAt:Date.now()}; await saveUsers(cache.users); }
+                if (!cache.comps.length && cache.entries.length>=5) {
+                    var ids=cache.entries.slice(0,8).map(function(e){return e.id});
+                    cache.comps.push({id:gid(),title:'吉祥图案识别大赛（第一轮）',desc:'识别以下8张吉祥图案，填写对应名称。全部答对即可获得满分！',entryIds:ids,published:true,createdAt:Date.now()});
+                    await saveComps(cache.comps);
+                }
+
+                // 显示登录页
+                document.getElementById('loginOverlay').style.display='flex';
+                document.getElementById('studentIdInput').focus();
+                document.getElementById('loginBtn').textContent='进入平台';
+                renderPresetImages();
+            } catch(e) {
+                document.getElementById('loginBtn').textContent='⚠️ 服务器未连接';
+                document.getElementById('loginBtn').disabled=true;
+                document.getElementById('loginOverlay').style.display='flex';
+            }
+        }
+        init();
+
+        // ======================== 暴露全局 ========================
+        window.handleLogin=handleLogin; window.handleLogout=handleLogout;
+        window.openPreviewModal=openPreviewModal; window.closePreviewModal=closePreviewModal;
+        window.openAddModal=openAddModal; window.openEditModal=openEditModal;
+        window.closeEditModal=closeEditModal; window.saveEntry=saveEntry;
+        window.selectPresetImage=selectPresetImage; window.togglePublish=togglePublish;
+        window.deleteEntry=deleteEntry; window.switchPage=switchPage;
+        window.enterCompetition=enterCompetition; window.submitCompetition=submitCompetition;
+        window.openCompModal=openCompModal; window.closeCompModal=closeCompModal;
+        window.saveCompetition=saveCompetition; window.toggleCompPublish=toggleCompPublish;
+        window.deleteCompetition=deleteCompetition; window.toggleEntrySelect=toggleEntrySelect;
+        window.refreshRanking=refreshRanking;
+    })();
+    </script>
+</body>
+</html>

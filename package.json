@@ -1,0 +1,12 @@
+{
+  "name": "image-word-library",
+  "version": "1.0.0",
+  "description": "图片词库竞速平台 - 多端同步版",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
