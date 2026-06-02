@@ -311,7 +311,7 @@
             if(pn==='admin') refreshAdmin();
         }
         document.getElementById('navLinks').addEventListener('click',function(e){
-            if(e.target.classList.contains('nav-link')){ var pn=e.target.getAttribute('data-page'); if(pn&&!document.getElementById('page-comp-detail').classList.contains('active')) switchPage(pn); }
+            if(e.target.classList.contains('nav-link')){ var pn=e.target.getAttribute('data-page'); if(pn) switchPage(pn); }
         });
         function refreshAll(){ refreshGallery(); refreshCompList(); refreshRanking(); refreshAdmin(); }
 
