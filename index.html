@@ -68,7 +68,7 @@
         .competition-list { display:flex; flex-direction:column; gap:16px; } .competition-item { cursor:pointer; }
         .competition-item .comp-meta { display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--text-light); margin-top:8px; }
         .comp-answer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px; }
-        .comp-answer-card { text-align:center; } .comp-answer-card .card-image { width:100%; height:180px; object-fit:cover; border-radius:var(--radius-sm); background:#f1f5f9; margin-bottom:10px; }
+        .comp-answer-card { text-align:center; } .comp-answer-card .card-image { width:100%; height:220px; object-fit:contain; border-radius:var(--radius-sm); background:#f1f5f9; margin-bottom:10px; }
         .comp-answer-card .entry-index { font-size:12px; color:var(--text-light); margin-bottom:6px; }
         .comp-input { width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:8px; font-size:15px; font-family:var(--font); background:#fafbfc; outline:none; text-align:center; transition:var(--transition); }
         .comp-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(74,108,247,0.08); background:#fff; }
@@ -114,7 +114,7 @@
         <div class="login-card">
             <div class="login-icon">🖼️</div>
             <div class="login-title">图片词库平台</div>
-            <div class="login-subtitle">输入<strong>7位学号</strong>登录（多端同步）<br>管理员请使用 <strong>0000000</strong></div>
+            <div class="login-subtitle">输入<strong>7位学号</strong>登录（多端同步）</div>
             <div class="input-group">
                 <input type="text" id="studentIdInput" placeholder="请输入7位学号" maxlength="7" autocomplete="off" inputmode="numeric">
             </div>
